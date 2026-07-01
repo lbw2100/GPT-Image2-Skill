@@ -49,6 +49,16 @@
   </tr>
 </table>
 
+<p align="center">
+  <a href="https://starmapper.bruniaux.com/wuyoscar/GPT-Image2-Skill?utm_source=map-embed&utm_medium=readme&utm_campaign=stargazer-map">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://starmapper.bruniaux.com/api/map-image/wuyoscar/GPT-Image2-Skill?theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://starmapper.bruniaux.com/api/map-image/wuyoscar/GPT-Image2-Skill?theme=light" />
+      <img alt="Stargazer map for GPT-Image2-Skill" src="https://starmapper.bruniaux.com/api/map-image/wuyoscar/GPT-Image2-Skill" width="100%" />
+    </picture>
+  </a>
+</p>
+
 ---
 
 ## 🔎 What this repo is for
