@@ -22,7 +22,19 @@
   <a href="docs/assets/gptimage2skill-banner.png"><img src="docs/assets/gptimage2skill-banner.png" alt="GPTImage2Skill banner" width="100%"/></a>
 </p>
 
----
+
+## ⭐ Star History
+
+
+<a href="https://www.star-history.com/?type=date&repos=wuyoscar%2Fgpt_image_2_skill">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&theme=dark&legend=top-left&sealed_token=IJ3dEZnIuxxkPnem-beXJFldrz1M-Jd8-P9w8HrvJlRYtyKUkZncah6Z-dwN8Rnu8Q" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&legend=top-left&sealed_token=IJ3dEZnIuxxkPnem-beXJFldrz1M-Jd8-P9w8HrvJlRYtyKUkZncah6Z-dwN8Rnu8Q" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&legend=top-left&sealed_token=IJ3dEZnIuxxkPnem-beXJFldrz1M-Jd8-P9w8HrvJlRYtyKUkZncah6Z-dwN8Rnu8Q" />
+ </picture>
+</a>
+
+
 
 ## ✨ At a glance
 
@@ -61,11 +73,11 @@
 
 ---
 
-## 🔎 What this repo is for
+## 🔎 
 
 Use this repo as a **GPT Image 2 prompt gallery**, **image prompt library**, **example of generation showcase**, **Codex / Claude Code agent skill**, and **gpt-image-2 CLI**. It includes reusable AI image prompts for research paper figures, posters, UI mockups, game HUDs, anime / manga, photography, typography, maps, tattoo design, and reference-image editing workflows.
 
-> This project is not trying to collect every prompt on the internet. We keep a selected set of examples that show what GPT Image 2 can do and how to use it well. Thanks for all the love this little gallery has received 🫶 — if time allows, I will also share the automated patch/update workflow behind it later.
+> This project is not trying to collect every prompt on the internet. We keep a selected set of examples that show what GPT Image 2 can do and how to use it well. Thanks for all the love this little gallery has received 🫶.
 
 > [!CAUTION]
 > For research figures, treat generated images as references, workflow sketches, or reproducible style targets. We do **not** recommend dropping GPT Image 2 outputs directly into a paper as-is; for academic communication, that can be misleading and is generally bad practice.
@@ -74,7 +86,7 @@ Use this repo as a **GPT Image 2 prompt gallery**, **image prompt library**, **e
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md).
 
-## 📥 Install
+## 📥 
 
 Before installing, check whether the skill or CLI is already available. Do not reinstall blindly, overwrite an existing skill folder, or create/replace API-key files. Use your runtime's own skill list/status command when available; global/shared installs should be an explicit user choice, not an automatic setup step.
 
@@ -2828,13 +2840,6 @@ Community standards:
 - [Support](SUPPORT.md)
 - [Pull request template](.github/PULL_REQUEST_TEMPLATE.md)
 
-## ⭐ Star History
-
-<p align="center">
-  <a href="https://www.star-history.com/#wuyoscar/gpt_image_2_skill&Date">
-    <img src="https://api.star-history.com/svg?repos=wuyoscar/gpt_image_2_skill&type=Date" alt="Star History Chart" width="100%"/>
-  </a>
-</p>
 
 ## 📄 License
 
