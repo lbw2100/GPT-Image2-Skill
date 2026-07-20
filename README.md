@@ -23,16 +23,11 @@
 </p>
 
 
-## ⭐ Star History
 
 
-<a href="https://www.star-history.com/?type=date&repos=wuyoscar%2Fgpt_image_2_skill">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&theme=dark&legend=top-left&sealed_token=IJ3dEZnIuxxkPnem-beXJFldrz1M-Jd8-P9w8HrvJlRYtyKUkZncah6Z-dwN8Rnu8Q" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&legend=top-left&sealed_token=IJ3dEZnIuxxkPnem-beXJFldrz1M-Jd8-P9w8HrvJlRYtyKUkZncah6Z-dwN8Rnu8Q" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&legend=top-left&sealed_token=IJ3dEZnIuxxkPnem-beXJFldrz1M-Jd8-P9w8HrvJlRYtyKUkZncah6Z-dwN8Rnu8Q" />
- </picture>
-</a>
+
+
+
 
 
 
@@ -70,6 +65,9 @@
     </picture>
   </a>
 </p>
+
+
+
 
 ---
 
@@ -2818,6 +2816,16 @@ Create a dark surrealist tattoo design sheet in portrait format. Subject: a gian
 ```
 
 </details>
+
+
+<a href="https://www.star-history.com/?repos=wuyoscar%2Fgpt_image_2_skill&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&theme=dark&legend=top-left&sealed_token=AMPlH2pDA70J58rYTnqfwEso2sIVFwUfPziEjl1YFH9rg3tOmWADGEOgdy2E2cycN93N2GdMj9sG5ZyOmdvJM8EBEfuIjO35tqxluAhs4xEoontfXRQsNA" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&legend=top-left&sealed_token=AMPlH2pDA70J58rYTnqfwEso2sIVFwUfPziEjl1YFH9rg3tOmWADGEOgdy2E2cycN93N2GdMj9sG5ZyOmdvJM8EBEfuIjO35tqxluAhs4xEoontfXRQsNA" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=wuyoscar/gpt_image_2_skill&type=date&legend=top-left&sealed_token=AMPlH2pDA70J58rYTnqfwEso2sIVFwUfPziEjl1YFH9rg3tOmWADGEOgdy2E2cycN93N2GdMj9sG5ZyOmdvJM8EBEfuIjO35tqxluAhs4xEoontfXRQsNA" />
+ </picture>
+</a>
+
 
 ## 🙏 Acknowledgments
 
