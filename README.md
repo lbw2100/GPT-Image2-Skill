@@ -2836,7 +2836,7 @@ This gallery stands on top of excellent public work and community exploration:
 - [EvoLinkAI/awesome-gpt-image-2-prompts](https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts)
 - [YouMind-OpenLab/awesome-gpt-image-2](https://github.com/YouMind-OpenLab/awesome-gpt-image-2)
 - [ZeroLu/awesome-gpt-image](https://github.com/ZeroLu/awesome-gpt-image)
-
+- [LINUX DO](https://linux.do)
 ## 🤝 Contributing
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before adding prompts, images, categories, or runtime integrations.
