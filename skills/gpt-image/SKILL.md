@@ -56,13 +56,13 @@ uvx --from git+https://github.com/wuyoscar/gpt_image_2_skill gpt-image -p "PROMP
 | `-i, --image` | repeatable path | Use edits endpoint; supports multiple references |
 | `-m, --mask` | PNG path | Inpaint with alpha mask; requires `-i` |
 | `--model` | default `gpt-image-2` | Image model |
-| `--size` | `1k`, `2k`, `4k`, `portrait`, `landscape`, `square`, `wide`, `tall`, or literal | Canvas size |
+| `--size` | `auto`, standard literals, any `WxH`, or shortcuts `1k`, `2k`, `4k`, `portrait`, `landscape`, `square`, `wide`, `tall` | Canvas size; validated locally against gpt-image-2 rules (edges divisible by 16, aspect 1:3–3:1, 655,360–8,294,400 px, max 3840x2160) |
 | `--quality` | `low`, `medium`, `high`, `auto` | Cost/quality dial |
 | `-n, --n` | integer | Number of images |
-| `--background` | `auto`, `opaque` | Generation background |
+| `--background` | `auto`, `opaque`, `transparent` | Generation background; `transparent` (preview) requires `--format png` or `webp` |
 | `--moderation` | `auto`, `low` | Generation moderation setting |
 | `--format` | `png`, `jpeg`, `webp` | Output encoding |
-| `--compression` | `0-100` | JPEG/WebP compression |
+| `--compression` | `0-100` | JPEG/WebP compression; dropped automatically for PNG (API requires omitting it) |
 | `--user` | string | Optional end-user identifier |
 
 Quality policy:
@@ -77,6 +77,12 @@ Size policy:
 - print/paper figure: `2k`
 - widescreen hero: `4k`
 - vertical story/banner: `tall`
+- arbitrary aspect: any `WxH` meeting the gpt-image-2 constraints (e.g. `1536x864` for 16:9)
+
+The CLI rejects invalid sizes before any API call (exit 2, constraint named) and
+warns on stderr when the response reports a different size than requested —
+that means the gateway/model ignored `--size`; resize locally (`sips -z H W`)
+if exact dimensions matter.
 
 ## Endpoint routing
 

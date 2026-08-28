@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Enforced official gpt-image-2 size constraints locally before any API call (16px edges, 1:3–3:1 aspect, 655,360–8,294,400 total pixels, max 3840x2160) and warned when the response reports a different size than requested, so gateways that ignore `--size` are caught.
+- Guarded remaining parameters per the official API: `-n` clamped to 1–10, `--compression` dropped automatically for PNG output, `--background transparent` requires `--format png|webp`, arbitrary `WIDTHxHEIGHT` and `auto` sizes pass validation.
+- Documented `transparent` under `--background` in the skill flag table and refreshed the size policy with the exact constraints.
 
 - Clarified the GPT Image skill as a gallery-first, CLI-first agent runbook: analyze user prompts, search Reference Gallery/craft files, confer when useful, then invoke the packaged CLI.
 - Added safer install and API-key guidance: check existing CLI/skill state first, avoid blind reinstall/overwrite, keep global/shared installs opt-in, and never write secrets unless explicitly requested.
