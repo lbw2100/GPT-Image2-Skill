@@ -24,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-_REPO_URL = "git+https://github.com/wuyoscar/gpt_image_2_skill"
+_REPO_URL = "git+https://github.com/lbw2100/GPT-Image2-Skill"
 
 
 def _import_local_or_installed_main():
