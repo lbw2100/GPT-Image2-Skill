@@ -14,9 +14,10 @@ Mirrors the two official endpoints from the OpenAI cookbook using the official
     client.images.generate(...)   — text → image          (no  -i)
     client.images.edit(...)       — text + image(s) → image (with -i; mask via -m)
 
-Every documented parameter is exposed as a flag. Reads OPENAI_API_KEY from
-process env, then .env, then ~/.env without overriding existing env. Writes the
-returned PNG/JPEG/WebP bytes to disk and prints the output path(s) on stdout.
+Every documented parameter is exposed as a flag. Reads OPENAI_API_KEY and
+OPENAI_BASE_URL from process env, then ~/.config/gpt-image/env, then .env, then
+~/.env without overriding existing env. Writes the returned PNG/JPEG/WebP bytes
+to disk and prints the output path(s) on stdout.
 
 Exit codes: 0 success, 1 API error, 2 bad args.
 
@@ -37,7 +38,7 @@ Examples:
     gpt-image -p "replace sky with aurora" -i photo.jpg -m sky_mask.png -f aurora.png
 
     # Grid of 4, transparent background, webp
-    gpt-image -p "isometric chair, minimalist" -n 4 --background opaque --format webp
+    gpt-image -p "isometric chair, minimalist" -n 4 --background transparent --format webp
 
     # Skill launcher (same implementation, installed skill-folder path)
     uv run "$SKILL_DIR/scripts/generate.py" -p "a cat astronaut on the moon"
@@ -59,11 +60,14 @@ from openai import APIError, OpenAI
 
 
 def _load_env_chain() -> None:
-    """Resolve OPENAI_API_KEY without overriding runtime-provided env.
+    """Resolve OPENAI_* settings without overriding runtime-provided env.
 
-    Order: process env → ./.env → ~/.env. Existing process env wins so
-    hosted agents or explicit shell exports are not replaced by local files.
+    Order: process env → ~/.config/gpt-image/env → ./.env → ~/.env. Existing
+    process env wins so hosted agents or explicit shell exports are not replaced
+    by local files. The dedicated config file comes first among the files so
+    per-CLI settings are not shadowed by a generic .env meant for other tools.
     """
+    load_dotenv(Path.home() / ".config" / "gpt-image" / "env", override=False)
     load_dotenv(Path.cwd() / ".env", override=False)
     load_dotenv(Path.home() / ".env", override=False)
 
@@ -127,7 +131,10 @@ def parse_args() -> argparse.Namespace:
         help="Alpha-channel PNG mask (opaque = preserved, transparent = regenerated). "
              "Edits endpoint only; requires -i.",
     )
-    p.add_argument("--model", default=DEFAULT_MODEL, help=f"Model ID (default {DEFAULT_MODEL}).")
+    p.add_argument(
+        "--model", default=os.environ.get("GPT_IMAGE_MODEL") or DEFAULT_MODEL,
+        help=f"Model ID (default {DEFAULT_MODEL}, or $GPT_IMAGE_MODEL when set).",
+    )
     p.add_argument(
         "--size", default=DEFAULT_SIZE,
         help="Image size. Accepts literals (1024x1024, 1536x1024, 2048x2048, 3840x2160, "
@@ -141,8 +148,9 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("-n", "--n", type=int, default=1, help="Number of images to return. Default 1.")
     p.add_argument(
-        "--background", default=None, choices=["auto", "opaque"],
-        help="`opaque` disables transparency. Default API-side auto.",
+        "--background", default=None, choices=["auto", "opaque", "transparent"],
+        help="`transparent` yields an alpha channel (requires --format png or webp; "
+             "preview on gpt-image-2). `opaque` disables transparency. Default API-side auto.",
     )
     p.add_argument(
         "--moderation", default=DEFAULT_MODERATION, choices=["auto", "low"],
@@ -255,12 +263,13 @@ def write_outputs(data: list[Any], out_path: Path, n: int) -> list[Path]:
 
 
 def main() -> int:
+    _load_env_chain()
     args = parse_args()
 
-    _load_env_chain()
     if not os.environ.get("OPENAI_API_KEY"):
         print(
-            "error: OPENAI_API_KEY not set. Add it to env / .env / ~/.env, or use your host agent's native image tool.",
+            "error: OPENAI_API_KEY not set. Add it to env / ~/.config/gpt-image/env / .env / ~/.env, "
+            "or use your host agent's native image tool.",
             file=sys.stderr,
         )
         return 2
@@ -269,10 +278,16 @@ def main() -> int:
         print("error: --mask requires --image (edits endpoint only)", file=sys.stderr)
         return 2
 
+    if args.background == "transparent" and (args.output_format or "png") == "jpeg":
+        print("error: --background transparent requires --format png or webp", file=sys.stderr)
+        return 2
+
     ext = args.output_format or "png"
     out_path = Path(args.file).expanduser().resolve() if args.file else default_output_path(args.prompt, ext)
 
-    client = OpenAI()  # auto-reads OPENAI_API_KEY
+    _ua = os.environ.get("GPT_IMAGE_USER_AGENT")
+    # auto-reads OPENAI_API_KEY / OPENAI_BASE_URL
+    client = OpenAI(default_headers={"User-Agent": _ua}) if _ua else OpenAI()
 
     try:
         result = call_edit(client, args) if args.image else call_generate(client, args)
