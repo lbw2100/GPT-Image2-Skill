@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Warn when the API response reports a different size than requested, so gateways that ignore `--size` are caught instead of shipping wrong dimensions unnoticed (fork-local addition).
 - Clarified the GPT Image skill as a gallery-first, CLI-first agent runbook: analyze user prompts, search Reference Gallery/craft files, confer when useful, then invoke the packaged CLI.
 - Added safer install and API-key guidance: check existing CLI/skill state first, avoid blind reinstall/overwrite, keep global/shared installs opt-in, and never write secrets unless explicitly requested.
 - Updated cross-agent installation wording for Codex, OpenClaw, Claude Code, and manual skill runtimes.

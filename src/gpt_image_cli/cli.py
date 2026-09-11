@@ -48,6 +48,7 @@ import argparse
 import base64
 import os
 import re
+import struct
 import sys
 import urllib.request
 from datetime import datetime
@@ -187,6 +188,11 @@ def parse_args() -> argparse.Namespace:
                 or width % 16 or height % 16 or max(width, height) > 3 * min(width, height)
                 or not 655360 <= width * height <= 8294400):
             p.error("--size requires 16px multiples, edges <=3840px, aspect ratio <=3:1, and 655360–8294400 pixels")
+        if width * height > 2560 * 1440:
+            print(
+                f"note: --size {width}x{height} is above 2560x1440 — OpenAI marks >2K output as experimental.",
+                file=sys.stderr,
+            )
     return args
 
 
@@ -251,6 +257,38 @@ def call_edit(client: OpenAI, args: argparse.Namespace) -> Any:
             mask_handle.close()
 
 
+def warn_size_mismatch(result: Any, requested: str) -> None:
+    """Warn when the response reports a size different from the request.
+
+    The official API echoes the honored size per image; gateways that route to
+    backends without size semantics (e.g. the ChatGPT Codex backend) silently
+    return their own resolution — surface that instead of shipping wrong
+    dimensions unnoticed. Falls back to decoding the PNG IHDR when the SDK
+    model does not expose a size field.
+    """
+    if requested == "auto":
+        return
+    returned = getattr(result, "size", None)
+    if not returned:
+        for item in (result.data or []):
+            returned = getattr(item, "size", None)
+            if returned:
+                break
+    if not returned:
+        b64 = getattr((result.data or [None])[0], "b64_json", None) if result.data else None
+        raw = base64.b64decode(b64) if b64 else b""
+        if raw[:8] == b"\x89PNG\r\n\x1a\n" and len(raw) >= 24:
+            w, h = struct.unpack(">II", raw[16:24])
+            returned = f"{w}x{h}"
+    if returned and returned != requested:
+        print(
+            f"warning: requested size {requested} but upstream returned {returned} — "
+            "--size was ignored by the gateway/model; resize locally if exact "
+            f"dimensions matter (sips -z H W <file>).",
+            file=sys.stderr,
+        )
+
+
 def write_outputs(data: list[Any], out_path: Path, n: int) -> list[Path]:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
@@ -297,6 +335,8 @@ def main() -> int:
     except APIError as e:
         print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
         return 1
+
+    warn_size_mismatch(result, resolve_size(args.size))
 
     data = result.data or []
     if not data:
