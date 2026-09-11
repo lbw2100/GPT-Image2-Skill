@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "openai>=1.55",
+#     "openai>=2.32.0",
 #     "python-dotenv>=1.0",
 # ]
 # ///
@@ -24,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-_REPO_URL = "git+https://github.com/lbw2100/GPT-Image2-Skill"
+_REPO_URL = "git+https://github.com/wuyoscar/gpt_image_2_skill"
 
 
 def _import_local_or_installed_main():

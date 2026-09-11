@@ -2,11 +2,11 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "openai>=1.55",
+#     "openai>=2.32.0",
 #     "python-dotenv>=1.0",
 # ]
 # ///
-"""General-purpose CLI for OpenAI GPT Image 2.
+"""General-purpose CLI for OpenAI GPT Image 2 and 2.5.
 
 Mirrors the two official endpoints from the OpenAI cookbook using the official
 `openai` Python SDK:
@@ -14,14 +14,9 @@ Mirrors the two official endpoints from the OpenAI cookbook using the official
     client.images.generate(...)   — text → image          (no  -i)
     client.images.edit(...)       — text + image(s) → image (with -i; mask via -m)
 
-Every documented parameter is exposed as a flag. Sizes are validated locally
-against the official gpt-image-2 constraints (16px edges, 1:3–3:1 aspect,
-655,360–8,294,400 total pixels) before any API call, and the echoed response
-size is checked so gateways that ignore --size are caught. Reads
-OPENAI_API_KEY and OPENAI_BASE_URL from process env, then
-~/.config/gpt-image/env, then .env, then ~/.env without overriding existing
-env. Writes the returned PNG/JPEG/WebP bytes to disk and prints the output
-path(s) on stdout.
+Common generation and editing parameters are exposed as flags. Reads OPENAI_API_KEY from
+process env, then .env, then ~/.env without overriding existing env. Writes the
+returned PNG/JPEG/WebP bytes to disk and prints the output path(s) on stdout.
 
 Exit codes: 0 success, 1 API error, 2 bad args.
 
@@ -41,8 +36,8 @@ Examples:
     # Alpha-channel inpaint (mask opaque = keep, transparent = regenerate)
     gpt-image -p "replace sky with aurora" -i photo.jpg -m sky_mask.png -f aurora.png
 
-    # Grid of 4, transparent background, webp
-    gpt-image -p "isometric chair, minimalist" -n 4 --background transparent --format webp
+    # Grid of 4, opaque background, webp
+    gpt-image -p "isometric chair, minimalist" -n 4 --background opaque --format webp
 
     # Skill launcher (same implementation, installed skill-folder path)
     uv run "$SKILL_DIR/scripts/generate.py" -p "a cat astronaut on the moon"
@@ -56,7 +51,6 @@ import re
 import sys
 import urllib.request
 from datetime import datetime
-import struct
 from pathlib import Path
 from typing import Any
 
@@ -65,14 +59,11 @@ from openai import APIError, OpenAI
 
 
 def _load_env_chain() -> None:
-    """Resolve OPENAI_* settings without overriding runtime-provided env.
+    """Resolve OPENAI_API_KEY without overriding runtime-provided env.
 
-    Order: process env → ~/.config/gpt-image/env → ./.env → ~/.env. Existing
-    process env wins so hosted agents or explicit shell exports are not replaced
-    by local files. The dedicated config file comes first among the files so
-    per-CLI settings are not shadowed by a generic .env meant for other tools.
+    Order: process env → ./.env → ~/.env. Existing process env wins so
+    hosted agents or explicit shell exports are not replaced by local files.
     """
-    load_dotenv(Path.home() / ".config" / "gpt-image" / "env", override=False)
     load_dotenv(Path.cwd() / ".env", override=False)
     load_dotenv(Path.home() / ".env", override=False)
 
@@ -110,88 +101,14 @@ def resolve_size(value: str) -> str:
     return SIZE_SHORTCUTS.get(value.lower(), value)
 
 
-# Official gpt-image-2 size constraints (developers.openai.com, image API reference):
-# both edges divisible by 16; aspect ratio within 1:3..3:1; total pixels between
-# 655,360 and 8,294,400; max supported resolution 3840x2160; >2560x1440 (2K)
-# is officially "experimental".
-MIN_PIXELS = 655_360
-MAX_PIXELS = 8_294_400
-MAX_EDGE = 3840
-EXPERIMENTAL_PIXELS = 2_560 * 1_440
-
-
-def validate_size(value: str, model: str) -> tuple[str, str | None]:
-    """Resolve --size and enforce gpt-image-2 constraints locally.
-
-    Returns (resolved_size, warning). Exits with code 2 and a message naming
-    every violated constraint, so a bad size never reaches the API. Values for
-    other models (dall-e-*, gpt-image-1*) pass through unvalidated because
-    their size enums differ.
-    """
-    resolved = resolve_size(value)
-    if not model.strip().lower().startswith("gpt-image-2"):
-        return resolved, None
-    if resolved == "auto":
-        return resolved, None
-    m = re.fullmatch(r"(\d+)[xX](\d+)", resolved)
-    if not m:
-        print(f"error: --size {value!r} is not WIDTHxHEIGHT, a shortcut, or 'auto'", file=sys.stderr)
-        raise SystemExit(2)
-    w, h = int(m[1]), int(m[2])
-    problems: list[str] = []
-    if w % 16 or h % 16:
-        problems.append(f"both edges must be multiples of 16 (got {w}x{h})")
-    if w * h < MIN_PIXELS:
-        problems.append(f"total pixels must be >= {MIN_PIXELS:,} (got {w * h:,}; smallest square is 1024x1024)")
-    if w * h > MAX_PIXELS or max(w, h) > MAX_EDGE:
-        problems.append(f"max supported resolution is 3840x2160 / {MAX_PIXELS:,} px (got {w * h:,})")
-    if min(w, h) * 3 < max(w, h):
-        problems.append(f"aspect ratio must be within 1:3..3:1 (got {w}:{h})")
-    if problems:
-        print(f"error: --size {resolved} violates gpt-image-2 constraints: {'; '.join(problems)}", file=sys.stderr)
-        raise SystemExit(2)
-    warning = None
-    if w * h > EXPERIMENTAL_PIXELS:
-        warning = f"note: --size {resolved} is above 2560x1440 — OpenAI marks >2K output as experimental."
-    return resolved, warning
-
-
-def warn_size_mismatch(result: Any, requested: str) -> None:
-    """Warn when the response reports a size different from the request.
-
-    The official API echoes the honored size per image; gateways that route to
-    backends without size semantics (e.g. the ChatGPT Codex backend) silently
-    return their own resolution — surface that instead of shipping wrong
-    dimensions unnoticed. Falls back to decoding the PNG IHDR when the SDK
-    model does not expose a size field.
-    """
-    if requested == "auto":
-        return
-    returned = getattr(result, "size", None)
-    if not returned:
-        for item in (result.data or []):
-            returned = getattr(item, "size", None)
-            if returned:
-                break
-    if not returned:
-        b64 = getattr((result.data or [None])[0], "b64_json", None) if result.data else None
-        raw = base64.b64decode(b64) if b64 else b""
-        if raw[:8] == b"\x89PNG\r\n\x1a\n" and len(raw) >= 24:
-            w, h = struct.unpack(">II", raw[16:24])
-            returned = f"{w}x{h}"
-    if returned and returned != requested:
-        print(
-            f"warning: requested size {requested} but upstream returned {returned} — "
-            "--size was ignored by the gateway/model; resize locally if exact "
-            f"dimensions matter (sips -z H W <file>).",
-            file=sys.stderr,
-        )
+def model_rejects_input_fidelity(model: str) -> bool:
+    return re.fullmatch(r"gpt-image-2(?:-\d{4}-\d{2}-\d{2})?", model) is not None
 
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="gpt-image",
-        description="Call OpenAI GPT Image 2 (generations or edits) via the official openai Python SDK.",
+        description="Call OpenAI GPT Image 2/2.5 (generations or edits) via the official openai Python SDK.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("-p", "--prompt", required=True, help="Text prompt / edit instruction.")
@@ -210,28 +127,22 @@ def parse_args() -> argparse.Namespace:
         help="Alpha-channel PNG mask (opaque = preserved, transparent = regenerated). "
              "Edits endpoint only; requires -i.",
     )
-    p.add_argument(
-        "--model", default=os.environ.get("GPT_IMAGE_MODEL") or DEFAULT_MODEL,
-        help=f"Model ID (default {DEFAULT_MODEL}, or $GPT_IMAGE_MODEL when set).",
-    )
+    p.add_argument("--model", default=DEFAULT_MODEL, help=f"Model ID: gpt-image-2.5-flare, gpt-image-2.5-sunburst, or {DEFAULT_MODEL} (compatibility default).")
     p.add_argument(
         "--size", default=DEFAULT_SIZE,
-        help="'auto', standard literals (1024x1024, 1536x1024, 1024x1536), or any WIDTHxHEIGHT "
-             "with both edges divisible by 16, aspect within 1:3..3:1, and 655,360–8,294,400 "
-             "total pixels (max 3840x2160; >2560x1440 is experimental). Shortcuts: 1k, 2k, 4k, "
-             "portrait, landscape, square, wide, tall. Validated locally before calling the API. "
-             "Default 1024x1024.",
+        help="Image size. Accepts literals (1024x1024, 1536x1024, 2048x2048, 3840x2160, "
+             "any 16px-multiple up to 3840 max edge, 3:1 ratio cap) or shortcuts "
+             "(1k, 2k, 4k, portrait, landscape, square, wide, tall). Default 1024x1024.",
     )
     p.add_argument(
-        "--quality", default="high", choices=["auto", "low", "medium", "high"],
-        help="Rendering fidelity / budget knob (cost scales ~10× per step). Default high. "
+        "--quality", default="high", choices=["auto", "low", "medium", "high", "xhigh", "max"],
+        help="Rendering fidelity / budget knob. Default high; xhigh/max require GPT Image 2.5. "
              "Use low for cheap drafts, medium for normal exploration, high for final text-heavy or shipping-facing assets.",
     )
-    p.add_argument("-n", "--n", type=int, default=1, help="Number of images to return (1-10). Default 1.")
+    p.add_argument("-n", "--n", type=int, default=1, help="Number of images to return. Default 1.")
     p.add_argument(
         "--background", default=None, choices=["auto", "opaque", "transparent"],
-        help="`transparent` yields an alpha channel (requires --format png or webp; "
-             "preview on gpt-image-2). `opaque` disables transparency. Default API-side auto.",
+        help="`transparent` requires png or webp. Default API-side auto.",
     )
     p.add_argument(
         "--moderation", default=DEFAULT_MODERATION, choices=["auto", "low"],
@@ -239,7 +150,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--input-fidelity", dest="input_fidelity", default=None, choices=["low", "high"],
-        help="Edits only. gpt-image-2 rejects this parameter, so the CLI drops it locally before calling the API.",
+        help="Edits only; omitted by default. Dropped for gpt-image-2; explicit 2.5 values are passed to the API (support unverified).",
     )
     p.add_argument(
         "--format", dest="output_format", default=None,
@@ -254,7 +165,29 @@ def parse_args() -> argparse.Namespace:
         "--user", default=None,
         help="Optional end-user identifier forwarded to OpenAI for abuse tracking.",
     )
-    return p.parse_args()
+    args = p.parse_args()
+    image25 = re.fullmatch(r"gpt-image-2\.5-(?:flare|sunburst)(?:-\d{4}-\d{2}-\d{2})?", args.model) is not None
+    if args.quality in ("xhigh", "max") and not image25:
+        p.error("--quality xhigh/max requires --model gpt-image-2.5-flare or gpt-image-2.5-sunburst")
+    if args.background == "transparent" and args.output_format == "jpeg":
+        p.error("--background transparent requires --format png or webp")
+    if not 1 <= args.n <= 10:
+        p.error("--n must be between 1 and 10")
+    if args.output_compression is not None and not 0 <= args.output_compression <= 100:
+        p.error("--compression must be between 0 and 100")
+    if args.mask and not args.image:
+        p.error("--mask requires --image (edits endpoint only)")
+    size = resolve_size(args.size)
+    if (image25 or model_rejects_input_fidelity(args.model)) and size != "auto":
+        match = re.fullmatch(r"(\d+)x(\d+)", size)
+        if not match:
+            p.error("--size must be auto, a size shortcut, or WIDTHxHEIGHT")
+        width, height = map(int, match.groups())
+        if (min(width, height) <= 0 or max(width, height) > 3840
+                or width % 16 or height % 16 or max(width, height) > 3 * min(width, height)
+                or not 655360 <= width * height <= 8294400):
+            p.error("--size requires 16px multiples, edges <=3840px, aspect ratio <=3:1, and 655360–8294400 pixels")
+    return args
 
 
 def _filter_none(d: dict[str, Any]) -> dict[str, Any]:
@@ -266,13 +199,13 @@ def call_generate(client: OpenAI, args: argparse.Namespace) -> Any:
     return client.images.generate(**_filter_none({
         "model": args.model,
         "prompt": args.prompt,
-        "size": args.size,
+        "size": resolve_size(args.size),
         "quality": args.quality,
         "n": args.n,
         "background": args.background,
         "moderation": args.moderation,
         "output_format": args.output_format,
-        "output_compression": args.output_compression,
+        "output_compression": args.output_compression if args.output_format in ("jpeg", "webp") else None,
         "user": args.user,
     }))
 
@@ -302,13 +235,13 @@ def call_edit(client: OpenAI, args: argparse.Namespace) -> Any:
             "image": image_handles,
             "mask": mask_handle,
             "prompt": args.prompt,
-            "size": args.size,
+            "size": resolve_size(args.size),
             "quality": args.quality,
             "n": args.n,
             "background": args.background,
             "input_fidelity": input_fidelity,
             "output_format": args.output_format,
-            "output_compression": args.output_compression,
+            "output_compression": args.output_compression if args.output_format in ("jpeg", "webp") else None,
             "user": args.user,
         }))
     finally:
@@ -344,48 +277,23 @@ def write_outputs(data: list[Any], out_path: Path, n: int) -> list[Path]:
 
 
 def main() -> int:
-    _load_env_chain()
     args = parse_args()
 
+    _load_env_chain()
     if not os.environ.get("OPENAI_API_KEY"):
         print(
-            "error: OPENAI_API_KEY not set. Add it to env / ~/.config/gpt-image/env / .env / ~/.env, "
-            "or use your host agent's native image tool.",
+            "error: OPENAI_API_KEY not set. Add it to env / .env / ~/.env, or use your host agent's native image tool.",
             file=sys.stderr,
         )
         return 2
 
-    if args.mask and not args.image:
-        print("error: --mask requires --image (edits endpoint only)", file=sys.stderr)
-        return 2
-
-    if not 1 <= args.n <= 10:
-        print("error: -n/--n must be between 1 and 10", file=sys.stderr)
-        return 2
-
-    if args.background == "transparent" and (args.output_format or "png") == "jpeg":
-        print("error: --background transparent requires --format png or webp", file=sys.stderr)
-        return 2
-
-    if args.output_compression is not None and (args.output_format or "png") == "png":
-        print("note: dropping --compression — PNG output must not set output_compression.", file=sys.stderr)
-        args.output_compression = None
-
-    size, size_note = validate_size(args.size, args.model)
-    if size_note:
-        print(size_note, file=sys.stderr)
-    args.size = size
-
     ext = args.output_format or "png"
     out_path = Path(args.file).expanduser().resolve() if args.file else default_output_path(args.prompt, ext)
 
-    _ua = os.environ.get("GPT_IMAGE_USER_AGENT")
-    # auto-reads OPENAI_API_KEY / OPENAI_BASE_URL
-    client = OpenAI(default_headers={"User-Agent": _ua}) if _ua else OpenAI()
+    client = OpenAI(max_retries=0)  # No hidden retries of potentially billable generation requests.
 
     try:
         result = call_edit(client, args) if args.image else call_generate(client, args)
-        warn_size_mismatch(result, args.size)
     except APIError as e:
         print(f"error: {type(e).__name__}: {e}", file=sys.stderr)
         return 1
