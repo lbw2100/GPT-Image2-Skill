@@ -47,10 +47,13 @@ scan.py  →  (you/agent fill in prompts)  →  render.py --stage draft
    <gen_size>` call per asset with a prompt set. `-i` (edit endpoint, not
    text-to-image) keeps layout/composition close to the source — measurably
    closer than pure text-to-image, which tends to drop secondary elements
-   (subtitles, side ornaments). Note `-i` also preserves *everything else*
-   in the source, including any third-party watermarks or other studios'
-   icons still in frame — say so explicitly in the prompt if those need to
-   go, don't assume the model drops them on its own.
+   (subtitles, side ornaments).
+   `-i` also preserves *everything else* in the source, including any
+   third-party watermarks or other studios' icons still in frame, so
+   `render.py` appends a cleanup clause to every prompt by default asking
+   the model to drop watermarks/source-site URLs/other studios' logos and
+   character art from the background. Pass `--keep-source-artifacts` to
+   turn that off and edit strictly as-is.
    Cheap `--quality low/medium` first; a full pack at `high` is real money.
 
 4. **Human review.** Pick the keepers by asset id.
@@ -58,16 +61,17 @@ scan.py  →  (you/agent fill in prompts)  →  render.py --stage draft
 5. **`render.py manifest.json --stage final --quality high --out-dir final_raw/ --only id1,id2,...`**
    — re-render only the selected assets at full quality.
 
-6. **`fit.py manifest.json --stage final --out-dir output/ --format webp --quality 82`**
+6. **`fit.py manifest.json --stage final --out-dir output/`**
    — smart-crops each `final_raw` image to its manifest `orig_width` x
-   `orig_height` (exact) and writes it compressed. `--smartcrop attention`
-   (default) crops toward the salient region when the generated aspect
-   doesn't match the target box; pass `--smartcrop none` to letterbox
-   instead of cropping when nothing may be lost off-canvas (e.g. UI icons
-   with meaningful corners).
+   `orig_height` (exact). Defaults to lossless PNG -- no compression unless
+   you ask: add `--format webp --quality 82` (or `jpg`) to actually
+   compress. `--smartcrop attention` (default) crops toward the salient
+   region when the generated aspect doesn't match the target box; pass
+   `--smartcrop none` to letterbox instead of cropping when nothing may be
+   lost off-canvas (e.g. UI icons with meaningful corners).
 
-Re-run step 6 with `--stage draft --format png` any time on the drafts to
-preview at exact size before spending on a `final` pass.
+Re-run step 6 with `--stage draft` any time on the drafts to preview at
+exact size before spending on a `final` pass.
 
 ## Gateway size drift
 

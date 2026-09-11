@@ -105,6 +105,41 @@ Size policy:
 
 Surface API errors verbatim enough for debugging; exit codes: `0` success, `1` API/refusal, `2` bad args/missing key.
 
+## Batch reskin pipeline
+
+For "reskin/rebrand a whole folder of game or app art and give back each
+image at its own original size" requests — not single-image asks — use
+`tools/batch-reskin/` instead of ad hoc per-image calls. Full workflow in
+`tools/batch-reskin/README.md`; summary:
+
+1. `scan.py SRC_DIR -o manifest.json` — records each asset's real pixel size
+   and solves a size that satisfies the API's constraints (16px-multiple
+   edges, 655,360–8,294,400 px, aspect ≤3:1, max edge 3840). Aspects beyond
+   3:1 are capped for generation and restored later by a crop, not skipped.
+2. Reverse-engineer 2–3 representative assets (not every one — a pack
+   shares one art direction) into a shared style block, then write each
+   manifest entry's `prompt` as that block plus the per-asset delta plus the
+   user's reskin brief.
+3. `render.py --stage draft` (cheap quality first) → human picks keepers →
+   `render.py --stage final --only <ids>` at full quality. Uses `-i`
+   reference edits (layout-preserving), and by default appends a clause
+   telling the model to drop watermarks, source-site URLs, and other
+   studios' logos/character art from the background — `-i` otherwise
+   reproduces those verbatim along with everything else in frame.
+4. `fit.py` — force-crops each result back to that asset's exact original
+   width × height. Output is lossless PNG by default (no compression);
+   only pass `--format webp/jpg --quality N` when compression was actually
+   requested.
+
+Before running this on assets that aren't the user's own or their client's,
+confirm rights first — `-i` reference edits reproduce far more of the source
+than a text-to-image regeneration, so bulk-reskinning a third party's whole
+asset pack raises copyright/trademark exposure a single-image edit doesn't.
+Keep the user's own wordmark/brand text; don't try to preserve another
+studio's distinctive character designs or logos even with the cleanup clause
+in play — see `../get-prompt-from-image/SKILL.md`'s IP section for the same
+rule applied to prompt reverse-engineering.
+
 ## Reference loading
 
 - **Image 2**: open `references/gallery.md`, then one matching `references/gallery-*.md` category and its actual prompt text. Read only relevant sections of `references/craft.md` or the historical `references/openai-cookbook.md` when needed.

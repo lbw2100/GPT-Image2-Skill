@@ -1,7 +1,7 @@
 {
   "name": "gpt-image",
   "description": "OpenAI GPT Image 2/2.5 prompt gallery, image prompt library, agentic skill + CLI. Model-aware, on-demand prompt references, image editing workflows, and a packaged CLI for skill-capable agent runtimes.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "wuyoscar",
     "url": "https://github.com/wuyoscar"

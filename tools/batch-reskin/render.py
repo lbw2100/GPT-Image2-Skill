@@ -8,6 +8,12 @@ README). Calls the `gpt-image` CLI once per asset through the edits
 endpoint (-i, reference-based) so layout/composition survives better than
 plain text-to-image, at the size scan.py solved for that asset.
 
+By default, appends a cleanup clause to every prompt instructing the model to
+drop watermarks, source-site URLs, and other studios' logos/character art
+from the background -- -i reference edits otherwise reproduce those verbatim
+along with everything else in frame. Pass --keep-source-artifacts to disable
+this and edit strictly as-is.
+
 Usage:
   render.py manifest.json --stage draft --quality medium --out-dir drafts/
   render.py manifest.json --stage final --quality high --out-dir final_raw/ --only hero,icon_07
@@ -20,6 +26,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+DEFAULT_CLEANUP_CLAUSE = (
+    " Remove any watermarks, source-site URLs/handles, third-party studio logos, and other "
+    "studios' distinctive character art or wordmarks visible in the reference image's "
+    "background; do not reproduce them in the output."
+)
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -29,6 +41,8 @@ def main() -> int:
     ap.add_argument("--quality", default="medium")
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--only", help="comma-separated asset ids; default is every asset with a prompt set")
+    ap.add_argument("--keep-source-artifacts", action="store_true",
+                     help="don't append the default watermark/third-party-logo cleanup clause")
     args = ap.parse_args()
 
     data = json.loads(args.manifest.read_text())
@@ -42,10 +56,14 @@ def main() -> int:
             print(f"skip {asset['id']}: no prompt set", file=sys.stderr)
             continue
 
+        prompt = asset["prompt"]
+        if not args.keep_source_artifacts:
+            prompt += DEFAULT_CLEANUP_CLAUSE
+
         out_path = args.out_dir / f"{asset['id']}.png"
         cmd = [
             "gpt-image", "--model", args.model,
-            "-p", asset["prompt"],
+            "-p", prompt,
             "-i", asset["source"],
             "--size", asset["gen_size"],
             "--quality", args.quality,

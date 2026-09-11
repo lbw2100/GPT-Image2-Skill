@@ -3,14 +3,19 @@
 
 Reads {stage}_output from the manifest and smart-crops (fills the target box,
 cropping toward the salient region) each one to orig_width x orig_height via
-vipsthumbnail, writing JPEG/WebP at the given quality (or PNG, lossless).
-This is the step that restores exact irregular original sizes gpt-image
-cannot generate directly -- icons below the API's minimum pixel count,
-banners beyond its 3:1 aspect cap, and any size that isn't a 16px multiple.
+vipsthumbnail. This is the step that restores exact irregular original sizes
+gpt-image cannot generate directly -- icons below the API's minimum pixel
+count, banners beyond its 3:1 aspect cap, and any size that isn't a 16px
+multiple.
+
+Defaults to lossless PNG output -- no compression unless you ask for it.
+Pass --format webp/jpg (with --quality) to actually compress.
 
 Requires libvips (`brew install vips` / `apt install libvips-tools`).
 
-Usage: fit.py manifest.json --stage final --out-dir output/ --format webp --quality 82
+Usage:
+  fit.py manifest.json --stage final --out-dir output/                       # exact size, lossless PNG
+  fit.py manifest.json --stage final --out-dir output/ --format webp --quality 82   # + compressed
 """
 from __future__ import annotations
 
@@ -26,7 +31,8 @@ def main() -> int:
     ap.add_argument("manifest", type=Path)
     ap.add_argument("--stage", required=True, choices=["draft", "final"])
     ap.add_argument("--out-dir", type=Path, required=True)
-    ap.add_argument("--format", default="webp", choices=["webp", "jpg", "png"])
+    ap.add_argument("--format", default="png", choices=["webp", "jpg", "png"],
+                     help="default png = lossless, no compression. Pass webp/jpg to compress.")
     ap.add_argument("--quality", type=int, default=82, help="ignored for --format png (always lossless)")
     ap.add_argument("--smartcrop", default="attention", choices=["attention", "centre", "entropy", "none"],
                      help="crop strategy when the source aspect doesn't match the target box; 'none' pads/letterboxes instead")
